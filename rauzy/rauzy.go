@@ -66,9 +66,9 @@ func (r *rauzy) SaveTxt(fn string) {
 }
 
 func (r *rauzy) SavePng(fn string) {
+	r.print()
 	pvec := r.splitDots()
 	basis := r.basis()
-	fmt.Println(basis)
 	pcoord := projCoord(pvec, basis)
 	min, max := minmax(pcoord)
 	trX, trY := trans(min, max, 600, 600)
@@ -88,7 +88,6 @@ func (r *rauzy) SavePng(fn string) {
 	}
 	for i, pc := range pcoord {
 		for _, cc := range pc {
-			fmt.Println(trX(cc[0]), trY(cc[1]))
 			img.Set(trX(cc[0]), trY(cc[1]), pal[i])
 		}
 	}
@@ -230,7 +229,7 @@ func normalize(v []float64) []float64 {
 	w := []float64{}
 	k := norm(v)
 	for _, vv := range v {
-		w = append(w, k*vv)
+		w = append(w, vv/k)
 	}
 	return w
 }
@@ -263,5 +262,5 @@ func (r *rauzy) print() {
 	fmt.Println("::Lenght of Fibonacci::")
 	fmt.Printf("%d\n", len(r.seq))
 	fmt.Println("::Pivot vector (normalized)::")
-	fmt.Printf("%v (%v)\n\n", r.vec, norm(r.vec))
+	fmt.Printf("%v (%v)\n\n", r.vec, normalize(r.vec))
 }

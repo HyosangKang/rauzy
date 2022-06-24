@@ -16,7 +16,7 @@ func main() {
 		return []int{}
 	}
 	r.SetPisot(p)
-	r.UpdateSeq(20)
-	r.SaveTxt("rauzy.txt")
+	r.UpdateSeq(25)
+	//r.SaveTxt("rauzy.txt")
 	r.SavePng("rauzy.png")
 }
