@@ -10,62 +10,61 @@ import (
 	"os"
 )
 
-type rauzy struct {
-	n     int
-	seq   []int
-	pisot func(int) []int
-	vec   []float64
+type Rauzy struct {
+	Dim int
+	Seq []int64
+	Sub map[int64][]int64
+	Vec []float64
 }
 
-func NewRauzy(n int) *rauzy {
-	return &rauzy{
-		n:   n,
-		seq: []int{0},
+func NewRauzy(n int) *Rauzy {
+	return &Rauzy{
+		Dim: n,
+		Seq: []int64{0},
 	}
 }
 
-func (r *rauzy) SetPisot(f func(int) []int) {
-	for i := 0; i < r.n; i++ {
-		if len(f(i)) == 0 {
+func (r *Rauzy) SetPisot(s map[int64][]int64) {
+	for i := 0; i < r.Dim; i++ {
+		if len(s[int64(i)]) == 0 {
 			panic("Invalid pisot subsitution")
 		}
 	}
-	r.pisot = f
+	r.Sub = s
 }
 
-func (r *rauzy) UpdateSeq(n int) {
+func (r *Rauzy) UpdateSeq(n int) {
 	for i := 0; i < n; i++ {
-		s := []int{}
-		for _, ss := range r.seq {
-			for _, sss := range r.pisot(ss) {
-				s = append(s, sss)
-			}
+		seq := []int64{}
+		for _, s := range r.Seq {
+			seq = append(seq, r.Sub[s]...)
 		}
-		r.seq = s
+		r.Seq = seq
 	}
-	v := make([]float64, r.n)
-	for _, ss := range r.seq {
+	v := make([]float64, r.Dim)
+	for _, ss := range r.Seq {
 		v[ss] += 1
 	}
-	r.vec = v
+	r.Vec = normalize(v)
+
 }
 
-func (r *rauzy) ClearSeq() {
-	r.seq = []int{}
+func (r *Rauzy) ClearSeq() {
+	r.Seq = []int64{0}
 }
 
-func (r *rauzy) SaveTxt(fn string) {
+func (r *Rauzy) SaveTxt(fn string) {
 	r.print()
 	fp, err := os.Create(fn)
 	if err != nil {
 		panic(err)
 	}
-	for _, s := range r.seq {
+	for _, s := range r.Seq {
 		fp.WriteString(fmt.Sprintf("%d ", s))
 	}
 }
 
-func (r *rauzy) SavePng(fn string) {
+func (r *Rauzy) SavePng(fn string) {
 	r.print()
 	pvec := r.splitDots()
 	basis := r.basis()
@@ -77,7 +76,7 @@ func (r *rauzy) SavePng(fn string) {
 		panic(err)
 	}
 	defer fp.Close()
-	pal := randomColor(r.n)
+	pal := randomColor(r.Dim)
 	pal = append(pal, color.White)
 	width, height := 600, 600
 	img := image.NewPaletted(image.Rect(0, 0, width, height), pal)
@@ -102,11 +101,11 @@ func trans(min, max []float64, sx, sy float64) (func(float64) int, func(float64)
 		}
 }
 
-func (r *rauzy) basis() [][]float64 {
+func (r *Rauzy) basis() [][]float64 {
 	eb := [][]float64{}
-	for i := 0; i < r.n; i++ {
+	for i := 0; i < r.Dim; i++ {
 		v := []float64{}
-		for j := 0; j < r.n; j++ {
+		for j := 0; j < r.Dim; j++ {
 			if j == i {
 				v = append(v, 1.0)
 			} else {
@@ -116,11 +115,11 @@ func (r *rauzy) basis() [][]float64 {
 		eb = append(eb, v)
 	}
 	b := [][]float64{}
-	for i := 0; i < r.n-1; i++ {
+	for i := 0; i < r.Dim-1; i++ {
 		if i == 0 {
-			b = append(b, normalize(orthoProject(eb[i], r.vec)))
+			b = append(b, normalize(orthoProject(eb[i], r.Vec)))
 		} else {
-			b = append(b, gramSchmidt(b, orthoProject(eb[i], r.vec)))
+			b = append(b, gramSchmidt(b, orthoProject(eb[i], r.Vec)))
 		}
 	}
 	return b
@@ -173,9 +172,7 @@ func coord(v []float64, basis [][]float64) []float64 {
 
 func gramSchmidt(basis [][]float64, v []float64) []float64 {
 	w := []float64{}
-	for _, vv := range v {
-		w = append(w, vv)
-	}
+	w = append(w, v...)
 	for _, b := range basis {
 		for i := 0; i < len(w); i++ {
 			w[i] -= inner(w, b) / (norm(b) * norm(b)) * b[i]
@@ -184,15 +181,15 @@ func gramSchmidt(basis [][]float64, v []float64) []float64 {
 	return normalize(w)
 }
 
-func (r *rauzy) splitDots() [][][]float64 {
-	pvec := make([][][]float64, r.n)
-	for i := 0; i < r.n; i++ {
+func (r *Rauzy) splitDots() [][][]float64 {
+	pvec := make([][][]float64, r.Dim)
+	for i := 0; i < r.Dim; i++ {
 		pvec[i] = [][]float64{}
 	}
-	v := make([]float64, r.n)
-	for _, ss := range r.seq {
+	v := make([]float64, r.Dim)
+	for _, ss := range r.Seq {
 		v[ss] += 1.0
-		pvec[ss] = append(pvec[ss], orthoProject(v, r.vec))
+		pvec[ss] = append(pvec[ss], orthoProject(v, r.Vec))
 	}
 	return pvec
 }
@@ -253,14 +250,14 @@ func randomColor(n int) []color.Color {
 	return co
 }
 
-func (r *rauzy) print() {
+func (r *Rauzy) print() {
 	fmt.Println()
 	fmt.Println("::Pisot substitution::")
-	for i := 0; i < r.n; i++ {
-		fmt.Printf("%d -> %v\n", i, r.pisot(i))
+	for i := 0; i < r.Dim; i++ {
+		fmt.Printf("%d -> %v\n", i, r.Sub[int64(i)])
 	}
 	fmt.Println("::Lenght of Fibonacci::")
-	fmt.Printf("%d\n", len(r.seq))
+	fmt.Printf("%d\n", len(r.Seq))
 	fmt.Println("::Pivot vector (normalized)::")
-	fmt.Printf("%v (%v)\n\n", r.vec, normalize(r.vec))
+	fmt.Printf("%v (%v)\n\n", r.Vec, normalize(r.Vec))
 }
