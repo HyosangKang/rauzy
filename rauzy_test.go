@@ -10,7 +10,8 @@ func TestMain(t *testing.M) {
 		0: {0, 1},
 		1: {0, 2},
 		2: {0}}
-	r.SetPisot(p)
-	r.UpdateSeq(25)
-	r.SavePng("rauzy.png")
+	r.SetSub(p)
+	r.Run(25)
+	r.Print()
+	r.ToPng("rauzy.png")
 }
