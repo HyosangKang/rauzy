@@ -11,16 +11,27 @@ import (
 )
 
 type Rauzy struct {
-	Dim int
-	Seq []int64
-	Sub map[int64][]int64
-	Vec []float64
+	Dim    int
+	Seq    []int64
+	Sub    map[int64][]int64
+	Vec    []float64
+	Colors []color.Color
+	Basis  [][]float64
 }
 
 func NewRauzy(n int) *Rauzy {
+	co := []color.Color{}
+	for i := 0; i < n; i++ {
+		r := uint8(rand.Intn(200))
+		g := uint8(rand.Intn(200))
+		b := uint8(rand.Intn(200))
+		co = append(co, color.NRGBA{R: r, G: g, B: b, A: 255})
+	}
+
 	return &Rauzy{
-		Dim: n,
-		Seq: []int64{0},
+		Dim:    n,
+		Seq:    []int64{0},
+		Colors: co,
 	}
 }
 
@@ -46,7 +57,7 @@ func (r *Rauzy) UpdateSeq(n int) {
 		v[ss] += 1
 	}
 	r.Vec = normalize(v)
-
+	r.Basis = r.basis()
 }
 
 func (r *Rauzy) ClearSeq() {
@@ -67,7 +78,7 @@ func (r *Rauzy) SaveTxt(fn string) {
 func (r *Rauzy) SavePng(fn string) {
 	r.print()
 	pvec := r.splitDots()
-	basis := r.basis()
+	basis := r.Basis
 	pcoord := projCoord(pvec, basis)
 	min, max := minmax(pcoord)
 	trX, trY := trans(min, max, 600, 600)
@@ -76,7 +87,7 @@ func (r *Rauzy) SavePng(fn string) {
 		panic(err)
 	}
 	defer fp.Close()
-	pal := randomColor(r.Dim)
+	pal := r.Colors
 	pal = append(pal, color.White)
 	width, height := 600, 600
 	img := image.NewPaletted(image.Rect(0, 0, width, height), pal)
@@ -237,17 +248,6 @@ func norm(v []float64) float64 {
 		a += float64(vv * vv)
 	}
 	return math.Sqrt(a)
-}
-
-func randomColor(n int) []color.Color {
-	co := []color.Color{}
-	for i := 0; i < n; i++ {
-		r := uint8(rand.Intn(200))
-		g := uint8(rand.Intn(200))
-		b := uint8(rand.Intn(200))
-		co = append(co, color.NRGBA{R: r, G: g, B: b, A: 255})
-	}
-	return co
 }
 
 func (r *Rauzy) print() {
