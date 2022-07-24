@@ -19,20 +19,63 @@ d3.csv("./points.csv",
 			);
 		}
 
-		var data = [{
-			x: unpack(rows, 'x'), 
-			y: unpack(rows, 'y'), 
-			z: unpack(rows, 'z'),
+		var data0 = {
+			x: unpack(rows, 'x0'), 
+			y: unpack(rows, 'y0'), 
+			z: unpack(rows, 'z0'),
 			mode: 'markers',
 			marker: {
 				size: 12,
 				line: {
 				color: 'rgba(217, 217, 217, 0.14)',
-				width: 0.5},
+				width: 0.1},
 				opacity: 0.8},
 			type: 'scatter3d'
-		}];
+		};
 
+		var data1 = {
+			x: unpack(rows, 'x1'), 
+			y: unpack(rows, 'y1'), 
+			z: unpack(rows, 'z1'),
+			mode: 'markers',
+			marker: {
+				size: 12,
+				line: {
+				color: 'rgba(107, 217, 37, 0.14)',
+				width: 0.1},
+				opacity: 0.8},
+			type: 'scatter3d'
+		};
+
+		var data2 = {
+			x: unpack(rows, 'x2'), 
+			y: unpack(rows, 'y2'), 
+			z: unpack(rows, 'z2'),
+			mode: 'markers',
+			marker: {
+				size: 12,
+				line: {
+				color: 'rgba(217, 57, 117, 0.14)',
+				width: 0.1},
+				opacity: 0.8},
+			type: 'scatter3d'
+		};
+
+		var data3 = {
+			x: unpack(rows, 'x3'), 
+			y: unpack(rows, 'y3'), 
+			z: unpack(rows, 'z3'),
+			mode: 'markers',
+			marker: {
+				size: 12,
+				line: {
+				color: 'rgba(57, 57, 107, 0.14)',
+				width: 0.1},
+				opacity: 0.8},
+			type: 'scatter3d'
+		};
+		
+		data = [data0, data1, data2, data3];
 		Plotly.newPlot('myDiv', data);
 	}
 );

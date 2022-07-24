@@ -82,6 +82,13 @@ func (r *Rauzy) Run(n int) {
 		r.Basis = append(r.Basis, gramSchmidt(r.Basis, oprj(eb[i], r.Vec)))
 	}
 
+	fmt.Println(r.Basis)
+	for _, v := range r.Basis {
+		for _, w := range r.Basis {
+			fmt.Println(dot(v, w))
+		}
+	}
+
 	// Find projections
 	vg := make(map[int64][][]float64)
 	v = make([]float64, r.Dim)
@@ -98,23 +105,41 @@ func (r *Rauzy) Run(n int) {
 	}
 }
 
-func (r *Rauzy) Prj(fn string) {
-
+func (r *Rauzy) Points(fn string) {
 	fp, _ := os.Create(fn)
 	defer fp.Close()
-	t := "x,y"
-	if r.Dim == 4 {
-		t += ",z"
+
+	// add key row
+	ax := []string{"x", "y", "z"}
+	t := ""
+	for i := 0; i < r.Dim; i++ {
+		for j := 0; j < r.Dim-1; j++ {
+			t += ax[j] + fmt.Sprintf("%d,", i)
+		}
 	}
 	fp.WriteString(t)
-	for i := 0; i < r.Dim; i++ {
-		for _, v := range r.Pvec[int64(i)] {
-			t := fmt.Sprintf("\n%3f", v[0])
-			for j := 1; j < len(v); j++ {
-				t += "," + fmt.Sprintf("%f", v[j])
+
+	count := 0
+	for {
+		t = "\n"
+		empty := true
+		for i := 0; i < r.Dim; i++ {
+			if len(r.Pvec[int64(i)]) > count {
+				empty = false
+				for _, v := range r.Pvec[int64(i)][count] {
+					t += fmt.Sprintf("%f,", v)
+				}
+			} else {
+				for j := 0; j < r.Dim-1; j++ {
+					t += ","
+				}
 			}
-			fp.WriteString(t)
 		}
+		if empty {
+			break
+		}
+		fp.WriteString(t)
+		count++
 	}
 }
 
@@ -186,8 +211,10 @@ func gramSchmidt(basis [][]float64, v []float64) []float64 {
 	w := make([]float64, len(v))
 	copy(w, v)
 	for _, b := range basis {
+		ww := make([]float64, len(v))
+		copy(ww, w)
 		for i := 0; i < len(w); i++ {
-			w[i] -= dot(w, b) / (norm(b) * norm(b)) * b[i]
+			w[i] -= dot(ww, b) / (norm(b) * norm(b)) * b[i]
 		}
 	}
 	return nrmz(w)
