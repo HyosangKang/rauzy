@@ -17,6 +17,7 @@ type Rauzy struct {
 	Vec    []float64
 	Colors []color.Color
 	Basis  [][]float64
+	Pvec   map[int64][][]float64
 }
 
 func NewRauzy(n int) *Rauzy {
@@ -32,6 +33,7 @@ func NewRauzy(n int) *Rauzy {
 	return &Rauzy{
 		Dim:    n,
 		Seq:    []int64{0},
+		Pvec:   make(map[int64][][]float64),
 		Colors: co,
 	}
 }
@@ -79,24 +81,45 @@ func (r *Rauzy) Run(n int) {
 	for i := 1; i < r.Dim-1; i++ {
 		r.Basis = append(r.Basis, gramSchmidt(r.Basis, oprj(eb[i], r.Vec)))
 	}
-}
 
-func (r *Rauzy) ToPng(fn string) {
+	// Find projections
 	vg := make(map[int64][][]float64)
-	v := make([]float64, r.Dim)
+	v = make([]float64, r.Dim)
 	for _, ss := range r.Seq {
 		v[ss] += 1.0
 		vg[ss] = append(vg[ss], oprj(v, r.Vec))
 	}
 
-	cg := make(map[int64][][]float64)
 	for i, vs := range vg {
 		for _, v := range vs {
 			c := coord(v, r.Basis)
-			cg[i] = append(cg[i], c)
+			r.Pvec[i] = append(r.Pvec[i], c)
 		}
 	}
-	min, max := bds(cg)
+}
+
+func (r *Rauzy) Prj(fn string) {
+
+	fp, _ := os.Create(fn)
+	defer fp.Close()
+	t := "x,y"
+	if r.Dim == 4 {
+		t += ",z"
+	}
+	fp.WriteString(t)
+	for i := 0; i < r.Dim; i++ {
+		for _, v := range r.Pvec[int64(i)] {
+			t := fmt.Sprintf("\n%3f", v[0])
+			for j := 1; j < len(v); j++ {
+				t += "," + fmt.Sprintf("%f", v[j])
+			}
+			fp.WriteString(t)
+		}
+	}
+}
+
+func (r *Rauzy) Png(fn string) {
+	min, max := bds(r.Pvec)
 	trX, trY := trans(min, max, 600, 600)
 
 	fp, err := os.Create(fn)
@@ -112,7 +135,7 @@ func (r *Rauzy) ToPng(fn string) {
 			img.Set(i, j, color.White)
 		}
 	}
-	for i, cs := range cg {
+	for i, cs := range r.Pvec {
 		for _, c := range cs {
 			img.Set(trX(c[0]), trY(c[1]), r.Colors[i])
 		}

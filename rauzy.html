@@ -1,0 +1,47 @@
+<head>
+	<!-- Load plotly.js into the DOM -->
+	<script src='https://cdn.plot.ly/plotly-2.12.1.min.js'></script>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js'></script>
+</head>
+
+<body>
+	<div id='myDiv'><!-- Plotly chart will be drawn inside this DIV --></div>
+	<!-- <div id="tester" style="width:600px;height:250px;"></div> -->
+</body>
+
+<script>
+d3.csv("./points.csv", 
+	function(err, rows){
+		function unpack(rows, key) {
+			return rows.map(
+				function(row) { 
+					return row[key]; }
+			);
+		}
+
+		var data = [{
+			x: unpack(rows, 'x'), 
+			y: unpack(rows, 'y'), 
+			z: unpack(rows, 'z'),
+			mode: 'markers',
+			marker: {
+				size: 12,
+				line: {
+				color: 'rgba(217, 217, 217, 0.14)',
+				width: 0.5},
+				opacity: 0.8},
+			type: 'scatter3d'
+		}];
+
+		Plotly.newPlot('myDiv', data);
+	}
+);
+</script>
+
+<!-- <script>
+	TESTER = document.getElementById('tester');
+	Plotly.newPlot( TESTER, [{
+	x: [1, 2, 3, 4, 5],
+	y: [1, 2, 4, 8, 16] }], {
+	margin: { t: 0 } } );
+</script> -->
