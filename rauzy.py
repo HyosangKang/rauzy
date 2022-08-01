@@ -1,38 +1,70 @@
+from tkinter import W
 import numpy as np
 import numpy.linalg as ln
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 class Rauzy:
-    def __init__(self, subs, n):
-        pts = [[] for i in range(3)]
-        w = [0]
-        for i in range(n):
-            wt = []
-            for j in range(len(w)):
-                wt.extend(subs[w[j]])
-            w = wt
-        self.ev = np.array([0.0, 0.0, 0.0])
-        for i in w:
-            self.ev[i] += 1
-            pts[i].append(np.array(self.ev))
-        self.ev /= ln.norm(self.ev)
-        a = np.array([self.ev, [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]).transpose()
+    subs = [] # substitution rule
+    dim = 0 # dimension of subsitution
+    cds = [] # projected coordinates
+    word = [] # morphic word
+    
+    def __init__(self, subs):
+        self.subs = subs
+        self.dim = len(subs)    
+        self.word = [0]
+
+    def draw(self, sz=5):
+        if self.dim == 3:
+            for i in range(self.dim):
+                plt.scatter(self.cds[i][0], self.cds[i][1], s=sz)
+        if self.dim == 4:
+            ax = plt.axes(projection='3d') 
+            for i in range(self.dim):
+                ax.scatter3D(self.cds[i][0], self.cds[i][1], self.cds[i][2], s=sz)
+        plt.show()
+
+    def morph(self):
+        w = [] 
+        for c in self.word:
+            w.extend(self.subs[c])
+        self.word = w
+
+    def eigenvector(self):
+        ev = [0 for _ in range(self.dim)]
+        for i in self.word:
+            ev[i] += 1
+        ev = np.array(ev)
+        self.ev = ev / ln.norm(ev)
+
+    def project(self):
+        m = [self.ev]
+        for i in range(self.dim-1):
+            v = [0.0 for _ in range(self.dim)]
+            v[i] = 1.0
+            m.append(v)
+        a = np.array(m).transpose()
         q, _ = ln.qr(a)
         q = q.transpose()
-        e = [q[1], q[2]]
-        self.cds = [[[] for _ in range(2)] for _ in range(3)]
-        for i in range(3):
-            for pt in pts[i]:
-                for j in range(2):
-                    self.cds[i][j].append(np.dot(pt, e[j]))
-    def draw(self):
-        for i in range(3):
-            plt.scatter(self.cds[i][0], self.cds[i][1], s=1)
-        plt.show()
-    def eigenvector(self):
-        return self.ev
+        e = []
+        for i in range(1, self.dim):
+            e.append(q[i])
+        self.cds = [[[] for _ in range(self.dim-1)] for _ in range(self.dim)]
+        v = np.array([0 for _ in range(self.dim)])
+        for c in self.word:
+            v[c] += 1
+            for i in range(self.dim-1):
+                self.cds[c][i].append(np.dot(v, e[i]))
+
+    def run(self, n):
+        for i in range(n):
+            self.morph()
+        self.eigenvector()
+        self.project()
 
 if __name__ == '__main__':
-    r = Rauzy([[0, 1], [0, 2], [0]], 20)
-    print(r.eigenvector())
-    r.draw()
+    r = Rauzy([[0, 1], [0, 2], [0]])
+    # r = Rauzy([[0, 1], [0, 2], [0, 3], [0]])
+    r.run(20)
+    r.draw(sz=2)
