@@ -1,4 +1,3 @@
-from tkinter import W
 import numpy as np
 import numpy.linalg as ln
 import matplotlib.pyplot as plt
@@ -64,7 +63,7 @@ class Rauzy:
         self.project()
 
 if __name__ == '__main__':
-    r = Rauzy([[0, 1], [0, 2], [0]])
-    # r = Rauzy([[0, 1], [0, 2], [0, 3], [0]])
-    r.run(20)
-    r.draw(sz=2)
+    # r = Rauzy([[0, 1], [0, 2], [0]])
+    r = Rauzy([[0, 1], [0, 2], [0, 3], [0]])
+    r.run(15)
+    r.draw(sz=5)

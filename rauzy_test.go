@@ -26,5 +26,5 @@ func TestMain(t *testing.M) {
 	r.Run(25)
 
 	r.Print()
-	r.Png("rauzy.png")
+	r.Png("rauzy_go.png")
 }
