@@ -15,12 +15,12 @@ func TestMain(t *testing.M) {
 	// r.Run(10)
 
 	// r.Print()
-	// r.Points("points.csv")
+	// r.Points("img/points.csv")
 
 	r := NewRauzy(20, [3][]int{{0, 1}, {0, 2}, {0}})
 	r.Run()
 
 	// r.Print()
-	// r.Png(600, 600, "rauzy_go.png")
-	r.Gif(600, 600, "rauzy_mov.gif", 60)
+	// r.Png(600, 600, "img/rauzy_go.png")
+	r.Gif(600, 600, "img/rauzy_mov.gif", 60)
 }
