@@ -4,148 +4,99 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/gif"
 	"image/png"
 	"math"
-	"math/rand"
 	"os"
 )
 
+type CP struct {
+	C int        // color
+	P [2]float64 // coordinate
+}
+
 type Rauzy struct {
-	Dim    int
-	Seq    []int64
-	Sub    map[int64][]int64
-	Vec    []float64
-	Colors []color.Color
-	Basis  [][]float64
-	Pvec   map[int64][][]float64
+	N      int           // max number of sequence
+	Word   []int         // word sequence
+	Sub    [3][]int      // substitution rule
+	EV     [3]float64    // diverging direction
+	B      [][3]float64  // basis of contracting plane
+	Colors []color.Color // color set
+	Pts    []CP          // Projected points
 }
 
-func NewRauzy(n int) *Rauzy {
-	co := []color.Color{}
-	for i := 0; i < n; i++ {
-		r := uint8(rand.Intn(200))
-		g := uint8(rand.Intn(200))
-		b := uint8(rand.Intn(200))
-		co = append(co, color.NRGBA{R: r, G: g, B: b, A: 255})
-	}
-	co = append(co, color.White)
-
-	return &Rauzy{
-		Dim:    n,
-		Seq:    []int64{0},
-		Pvec:   make(map[int64][][]float64),
-		Colors: co,
-	}
-}
-
-func (r *Rauzy) SetSub(s map[int64][]int64) {
-	for i := 0; i < r.Dim; i++ {
-		if len(s[int64(i)]) == 0 {
+func NewRauzy(n int, s [3][]int) *Rauzy {
+	for i := 0; i < 3; i++ {
+		if len(s[i]) == 0 {
 			panic("Invalid pisot subsitution")
 		}
 	}
-	r.Sub = s
-}
-
-func (r *Rauzy) Run(n int) {
-	// Find sequence
-	for i := 0; i < n; i++ {
-		seq := []int64{}
-		for _, s := range r.Seq {
-			seq = append(seq, r.Sub[s]...)
-		}
-		r.Seq = seq
+	co := []color.Color{
+		color.RGBA{255, 0, 0, 255},
+		color.RGBA{0, 255, 0, 255},
+		color.RGBA{0, 0, 255, 255},
+		color.White,
+		color.Black,
 	}
 
-	// Find eigenvector
-	v := make([]float64, r.Dim)
-	for _, ss := range r.Seq {
+	return &Rauzy{
+		N:      n,
+		Word:   []int{0},
+		Colors: co,
+		Sub:    s,
+	}
+}
+
+func (r *Rauzy) Morph() {
+	for i := 0; i < r.N; i++ {
+		w := []int{}
+		for _, a := range r.Word {
+			w = append(w, r.Sub[a]...)
+		}
+		r.Word = w
+	}
+}
+
+func (r *Rauzy) Eigenvector() {
+	v := [3]float64{}
+	for _, ss := range r.Word {
 		v[ss] += 1
 	}
-	r.Vec = nrmz(v)
+	r.EV = nrmz(v)
+}
 
-	// Find orthonormal basis perp to ev
-	eb := [][]float64{}
-	for i := 0; i < r.Dim-1; i++ {
-		v := []float64{}
-		for j := 0; j < r.Dim; j++ {
-			if j == i {
-				v = append(v, 1)
-			} else {
-				v = append(v, 0)
-			}
-		}
-		eb = append(eb, v)
+func (r *Rauzy) Basis() {
+	e1 := nrmz(oprj([3]float64{1, 0, 0}, r.EV))
+	e2 := oprj([3]float64{0, 1, 0}, r.EV)
+	k := dot(e1, e2)
+	for i := 0; i < 3; i++ {
+		e2[i] -= k * e1[i]
 	}
-	r.Basis = append(r.Basis, nrmz(oprj(eb[0], r.Vec)))
-	for i := 1; i < r.Dim-1; i++ {
-		r.Basis = append(r.Basis, gramSchmidt(r.Basis, oprj(eb[i], r.Vec)))
-	}
+	e2 = nrmz(e2)
+	r.B = [][3]float64{e1, e2}
+}
 
-	fmt.Println(r.Basis)
-	for _, v := range r.Basis {
-		for _, w := range r.Basis {
-			fmt.Println(dot(v, w))
-		}
-	}
+func (r *Rauzy) Run() {
+	r.Morph()
+	r.Eigenvector()
+	r.Basis()
 
-	// Find projections
-	vg := make(map[int64][][]float64)
-	v = make([]float64, r.Dim)
-	for _, ss := range r.Seq {
-		v[ss] += 1.0
-		vg[ss] = append(vg[ss], oprj(v, r.Vec))
-	}
+	r.Project()
+}
 
-	for i, vs := range vg {
-		for _, v := range vs {
-			c := coord(v, r.Basis)
-			r.Pvec[i] = append(r.Pvec[i], c)
-		}
+func (r *Rauzy) Project() {
+	v := [3]float64{}
+	for _, a := range r.Word {
+		v[a] += 1.0
+		o := oprj(v, r.EV)
+		c := [2]float64{dot(o, r.B[0]), dot(o, r.B[1])}
+		r.Pts = append(r.Pts, CP{a, c})
 	}
 }
 
-func (r *Rauzy) Points(fn string) {
-	fp, _ := os.Create(fn)
-	defer fp.Close()
-
-	// add key row
-	ax := []string{"x", "y", "z"}
-	t := ""
-	for i := 0; i < r.Dim; i++ {
-		for j := 0; j < r.Dim-1; j++ {
-			t += ax[j] + fmt.Sprintf("%d,", i)
-		}
-	}
-	fp.WriteString(t)
-
-	count := 0
-	for {
-		t = "\n"
-		empty := true
-		for i := 0; i < r.Dim; i++ {
-			if len(r.Pvec[int64(i)]) > count {
-				empty = false
-				for _, v := range r.Pvec[int64(i)][count] {
-					t += fmt.Sprintf("%f,", v)
-				}
-			} else {
-				for j := 0; j < r.Dim-1; j++ {
-					t += ","
-				}
-			}
-		}
-		if empty {
-			break
-		}
-		fp.WriteString(t)
-		count++
-	}
-}
-
-func (r *Rauzy) Png(fn string) {
-	min, max := bds(r.Pvec)
-	trX, trY := trans(min, max, 600, 600)
+func (r *Rauzy) Png(w, h int, fn string) {
+	min, max := bds(r.Pts)
+	trX, trY := trans(min, max, float64(w), float64(h))
 
 	fp, err := os.Create(fn)
 	if err != nil {
@@ -153,19 +104,83 @@ func (r *Rauzy) Png(fn string) {
 	}
 	defer fp.Close()
 
-	width, height := 600, 600
-	img := image.NewPaletted(image.Rect(0, 0, width, height), r.Colors)
-	for i := 0; i < width; i++ {
-		for j := 0; j < height; j++ {
+	img := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
+	for i := 0; i < w; i++ {
+		for j := 0; j < h; j++ {
 			img.Set(i, j, color.White)
 		}
 	}
-	for i, cs := range r.Pvec {
-		for _, c := range cs {
-			img.Set(trX(c[0]), trY(c[1]), r.Colors[i])
-		}
+	for _, cp := range r.Pts {
+		img.Set(trX(cp.P[0]), trY(cp.P[1]), r.Colors[cp.C])
 	}
 	png.Encode(fp, img)
+}
+
+func clear(img *image.Paletted) {
+	w, h := img.Rect.Max.X, img.Rect.Max.Y
+	for i := 0; i < w; i++ {
+		for j := 0; j < h; j++ {
+			img.Set(i, j, color.White)
+		}
+	}
+}
+
+func drawP(img *image.Paletted, p [2]int, c color.Color) {
+	sz := 1
+	for i := -sz; i <= sz; i++ {
+		for j := -sz; j <= sz; j++ {
+			img.Set(p[0]+i, p[1]+j, c)
+		}
+	}
+}
+
+func drawL(img *image.Paletted, p, q [2]int) {
+	n := p[0] - q[0]
+	if n < 0 {
+		n = -n
+	}
+	m := p[1] - q[1]
+	if m < 0 {
+		m = -n
+	}
+	if n < m {
+		n = m
+	}
+	for i := 0; i < n; i++ {
+		x := p[0] + int(float64(i*(q[0]-p[0]))/float64(n))
+		y := p[1] + int(float64(i*(q[1]-p[1]))/float64(n))
+		img.Set(x, y, color.Black)
+	}
+}
+
+func (r *Rauzy) Gif(w, h int, fn string, sec int) {
+	min, max := bds(r.Pts)
+	trX, trY := trans(min, max, float64(w), float64(h))
+	fp, _ := os.Create(fn)
+	defer fp.Close()
+
+	g := &gif.GIF{
+		LoopCount: -1,
+	}
+
+	for i := 0; i < 60*sec; i++ {
+		if i > len(r.Pts)-1 {
+			break
+		}
+		img := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
+		clear(img)
+		for j := 0; j <= i; j++ {
+			p := [2]int{trX(r.Pts[j].P[0]), trY(r.Pts[j].P[1])}
+			c := r.Colors[r.Pts[j].C]
+			drawP(img, p, c)
+		}
+		p := [2]int{trX(r.Pts[i].P[0]), trY(r.Pts[i].P[1])}
+		q := [2]int{trX(r.Pts[i+1].P[0]), trY(r.Pts[i+1].P[1])}
+		drawL(img, p, q)
+		g.Image = append(g.Image, img)
+		g.Delay = append(g.Delay, 1)
+	}
+	gif.EncodeAll(fp, g)
 }
 
 func trans(min, max []float64, sx, sy float64) (func(float64) int, func(float64) int) {
@@ -176,59 +191,37 @@ func trans(min, max []float64, sx, sy float64) (func(float64) int, func(float64)
 		}
 }
 
-func bds(pc map[int64][][]float64) ([]float64, []float64) {
-	n := len(pc[0][0])
+func bds(pts []CP) ([]float64, []float64) {
+	n := len(pts[0].P)
 	min := make([]float64, n)
 	max := make([]float64, n)
 	for i := 0; i < n; i++ {
 		min[i] = math.MaxFloat64
 		max[i] = -math.MaxFloat64
 	}
-	for _, cc := range pc {
-		for _, c := range cc {
-			for i := 0; i < n; i++ {
-				if c[i] < min[i] {
-					min[i] = c[i]
-				}
-				if c[i] > max[i] {
-					max[i] = c[i]
-				}
+	for _, p := range pts {
+		pp := p.P
+		for i := 0; i < n; i++ {
+			if pp[i] < min[i] {
+				min[i] = pp[i]
+			}
+			if pp[i] > max[i] {
+				max[i] = pp[i]
 			}
 		}
 	}
 	return min, max
 }
 
-func coord(v []float64, basis [][]float64) []float64 {
-	c := []float64{}
-	for _, b := range basis {
-		c = append(c, dot(v, b))
-	}
-	return c
-}
-
-func gramSchmidt(basis [][]float64, v []float64) []float64 {
-	w := make([]float64, len(v))
-	copy(w, v)
-	for _, b := range basis {
-		ww := make([]float64, len(v))
-		copy(ww, w)
-		for i := 0; i < len(w); i++ {
-			w[i] -= dot(ww, b) / (norm(b) * norm(b)) * b[i]
-		}
-	}
-	return nrmz(w)
-}
-
-func oprj(v, w []float64) []float64 {
-	a := []float64{}
+func oprj(v, w [3]float64) [3]float64 {
+	a := [3]float64{}
 	for i, vv := range prj(v, w) {
-		a = append(a, v[i]-vv)
+		a[i] = v[i] - vv
 	}
 	return a
 }
 
-func prj(v, w []float64) []float64 {
+func prj(v, w [3]float64) []float64 {
 	a := []float64{}
 	k := dot(v, w) / (norm(w) * norm(w))
 	for _, ww := range w {
@@ -237,27 +230,24 @@ func prj(v, w []float64) []float64 {
 	return a
 }
 
-func dot(v, w []float64) float64 {
-	if len(v) != len(w) {
-		panic("Invalid vector to project.")
-	}
+func dot(v, w [3]float64) float64 {
 	a := 0.0
-	for i := 0; i < len(v); i++ {
+	for i := 0; i < 3; i++ {
 		a += v[i] * w[i]
 	}
 	return a
 }
 
-func nrmz(v []float64) []float64 {
-	w := []float64{}
+func nrmz(v [3]float64) [3]float64 {
+	w := [3]float64{}
 	k := norm(v)
-	for _, vv := range v {
-		w = append(w, vv/k)
+	for i, vv := range v {
+		w[i] = vv / k
 	}
 	return w
 }
 
-func norm(v []float64) float64 {
+func norm(v [3]float64) float64 {
 	a := 0.0
 	for _, vv := range v {
 		a += float64(vv * vv)
@@ -268,15 +258,15 @@ func norm(v []float64) float64 {
 func (r *Rauzy) Print() {
 	fmt.Println()
 	fmt.Println("::Pisot substitution::")
-	for i := 0; i < r.Dim; i++ {
-		fmt.Printf("%d -> %v\n", i, r.Sub[int64(i)])
+	for i := 0; i < 3; i++ {
+		fmt.Printf("%d -> %v\n", i, r.Sub[i])
 	}
 
 	fmt.Println()
 	fmt.Println("::Lenght of Fibonacci::")
-	fmt.Printf("%d\n", len(r.Seq))
+	fmt.Printf("%d\n", len(r.Word))
 
 	fmt.Println()
 	fmt.Println("::Pivot vector (normalized)::")
-	fmt.Printf("%v\n\n", r.Vec)
+	fmt.Printf("%v\n\n", r.EV)
 }
