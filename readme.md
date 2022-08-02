@@ -9,7 +9,6 @@ For tribonacci sequence, you create an image file.
 ```
 func main() {    
 	r := NewRauzy(25, [3][]int{{0, 1}, {0, 2}, {0}})
-	r.Run()
 	r.Png(600, 600, "rauzy_go.png")
 }
 ```
