@@ -39,12 +39,14 @@ func NewRauzy(n int, s [3][]int) *Rauzy {
 		color.Black,
 	}
 
-	return &Rauzy{
+	r := &Rauzy{
 		N:      n,
 		Word:   []int{0},
 		Colors: co,
 		Sub:    s,
 	}
+	r.Run()
+	return r
 }
 
 func (r *Rauzy) Morph() {

@@ -8,19 +8,12 @@ For tribonacci sequence, you create an image file.
 
 ```
 func main() {    
-    r := NewRauzy(3)
-    p := map[int64][]int64{
-	    0: {0, 1},
-	    1: {0, 2},
-		    2: {0}}
-    r.SetSub(p)
-    r.Run(25)
-
-    r.Print()
-    r.Png("rauzy.png")
+	r := NewRauzy(25, [3][]int{{0, 1}, {0, 2}, {0}})
+	r.Run()
+	r.Png(600, 600, "rauzy_go.png")
 }
 ```
-![](./rauzy_go.png)
+![](./img/rauzy_go.png)
 
 For fourbonacci sequence, you can create the list of projected points.
 
@@ -51,12 +44,12 @@ r = Rauzy([[0, 1], [0, 2], [0]])
 r.run(20)
 r.draw(sz=2)
 ```
-![](./rauzy.png)
+![](./img/rauzy.png)
 ```
 r = Rauzy([[0, 1], [0, 2], [0, 3], [0]])
 r.run(15)
 r.draw(sz=5)
 ```
 
-![](./rauzy4.png)
+![](./img/rauzy4.png)
 
