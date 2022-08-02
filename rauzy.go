@@ -32,9 +32,9 @@ func NewRauzy(n int, s [3][]int) *Rauzy {
 		}
 	}
 	co := []color.Color{
-		color.RGBA{255, 0, 0, 255},
-		color.RGBA{0, 255, 0, 255},
-		color.RGBA{0, 0, 255, 255},
+		color.RGBA{245, 78, 66, 255},
+		color.RGBA{90, 245, 66, 255},
+		color.RGBA{38, 55, 237, 255},
 		color.White,
 		color.Black,
 	}
@@ -80,12 +80,11 @@ func (r *Rauzy) Run() {
 	r.Morph()
 	r.Eigenvector()
 	r.Basis()
-
 	r.Project()
 }
 
 func (r *Rauzy) Project() {
-	v := [3]float64{}
+	v := [3]float64{0, 0, 0}
 	for _, a := range r.Word {
 		v[a] += 1.0
 		o := oprj(v, r.EV)
@@ -105,15 +104,66 @@ func (r *Rauzy) Png(w, h int, fn string) {
 	defer fp.Close()
 
 	img := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
-	for i := 0; i < w; i++ {
-		for j := 0; j < h; j++ {
-			img.Set(i, j, color.White)
-		}
-	}
+	clear(img)
 	for _, cp := range r.Pts {
 		img.Set(trX(cp.P[0]), trY(cp.P[1]), r.Colors[cp.C])
 	}
 	png.Encode(fp, img)
+}
+
+func (r *Rauzy) Gif(w, h int, fn string, sec int) {
+	drawP := func(img *image.Paletted, p [2]int, c color.Color) {
+		sz := 3
+		for i := -sz; i <= sz; i++ {
+			for j := -sz; j <= sz; j++ {
+				img.Set(p[0]+i, p[1]+j, c)
+			}
+		}
+	}
+	drawL := func(img *image.Paletted, p, q [2]int) {
+		n := p[0] - q[0]
+		if n < 0 {
+			n = -n
+		}
+		m := p[1] - q[1]
+		if m < 0 {
+			m = -n
+		}
+		if n < m {
+			n = m
+		}
+		for i := 0; i < n; i++ {
+			x := p[0] + int(float64(i*(q[0]-p[0]))/float64(n))
+			y := p[1] + int(float64(i*(q[1]-p[1]))/float64(n))
+			img.Set(x, y, color.Black)
+		}
+	}
+	min, max := bds(r.Pts)
+	trX, trY := trans(min, max, float64(w), float64(h))
+	fp, _ := os.Create(fn)
+	defer fp.Close()
+
+	g := &gif.GIF{
+		LoopCount: -1,
+	}
+
+	img := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
+	clear(img)
+	for i := 0; i < 60*sec; i++ {
+		if i > len(r.Pts)-1 {
+			break
+		}
+		p := [2]int{trX(r.Pts[i].P[0]), trY(r.Pts[i].P[1])}
+		c := r.Colors[r.Pts[i].C]
+		drawP(img, p, c)
+		tim := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
+		copy(tim.Pix, img.Pix)
+		q := [2]int{trX(r.Pts[i+1].P[0]), trY(r.Pts[i+1].P[1])}
+		drawL(tim, p, q)
+		g.Image = append(g.Image, tim)
+		g.Delay = append(g.Delay, 1)
+	}
+	gif.EncodeAll(fp, g)
 }
 
 func clear(img *image.Paletted) {
@@ -125,70 +175,25 @@ func clear(img *image.Paletted) {
 	}
 }
 
-func drawP(img *image.Paletted, p [2]int, c color.Color) {
-	sz := 1
-	for i := -sz; i <= sz; i++ {
-		for j := -sz; j <= sz; j++ {
-			img.Set(p[0]+i, p[1]+j, c)
-		}
-	}
-}
-
-func drawL(img *image.Paletted, p, q [2]int) {
-	n := p[0] - q[0]
-	if n < 0 {
-		n = -n
-	}
-	m := p[1] - q[1]
-	if m < 0 {
-		m = -n
-	}
-	if n < m {
-		n = m
-	}
-	for i := 0; i < n; i++ {
-		x := p[0] + int(float64(i*(q[0]-p[0]))/float64(n))
-		y := p[1] + int(float64(i*(q[1]-p[1]))/float64(n))
-		img.Set(x, y, color.Black)
-	}
-}
-
-func (r *Rauzy) Gif(w, h int, fn string, sec int) {
-	min, max := bds(r.Pts)
-	trX, trY := trans(min, max, float64(w), float64(h))
-	fp, _ := os.Create(fn)
-	defer fp.Close()
-
-	g := &gif.GIF{
-		LoopCount: -1,
-	}
-
-	for i := 0; i < 60*sec; i++ {
-		if i > len(r.Pts)-1 {
-			break
-		}
-		img := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
-		clear(img)
-		for j := 0; j <= i; j++ {
-			p := [2]int{trX(r.Pts[j].P[0]), trY(r.Pts[j].P[1])}
-			c := r.Colors[r.Pts[j].C]
-			drawP(img, p, c)
-		}
-		p := [2]int{trX(r.Pts[i].P[0]), trY(r.Pts[i].P[1])}
-		q := [2]int{trX(r.Pts[i+1].P[0]), trY(r.Pts[i+1].P[1])}
-		drawL(img, p, q)
-		g.Image = append(g.Image, img)
-		g.Delay = append(g.Delay, 1)
-	}
-	gif.EncodeAll(fp, g)
-}
-
 func trans(min, max []float64, sx, sy float64) (func(float64) int, func(float64) int) {
-	return func(x float64) int {
-			return int(sx / (max[0] - min[0]) * (x - min[0]))
-		}, func(y float64) int {
-			return int(sy / (max[1] - min[1]) * (max[1] - y))
-		}
+	dx, dy := max[0]-min[0], max[1]-min[1]
+	if dy/dx > sy/sx {
+		w := sy * dx / dy
+		m := (sx - w) / 2
+		return func(x float64) int {
+				return int(w/dx*(x-min[0]) + m)
+			}, func(y float64) int {
+				return int(sy / dy * (max[1] - y))
+			}
+	} else {
+		h := sx * dy / dx
+		m := (sy - h) / 2
+		return func(x float64) int {
+				return int(sx / dx * (x - min[0]))
+			}, func(y float64) int {
+				return int(h/dy*(max[1]-y) + m)
+			}
+	}
 }
 
 func bds(pts []CP) ([]float64, []float64) {
