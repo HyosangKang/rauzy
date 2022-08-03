@@ -45,12 +45,12 @@ func NewRauzy(n int, s [3][]int) *Rauzy {
 		Colors: co,
 		Sub:    s,
 	}
-	r.Run()
+	r.Run(n)
 	return r
 }
 
-func (r *Rauzy) Morph() {
-	for i := 0; i < r.N; i++ {
+func (r *Rauzy) Morph(n int) {
+	for i := 0; i < n; i++ {
 		w := []int{}
 		for _, a := range r.Word {
 			w = append(w, r.Sub[a]...)
@@ -78,8 +78,9 @@ func (r *Rauzy) Basis() {
 	r.B = [][3]float64{e1, e2}
 }
 
-func (r *Rauzy) Run() {
-	r.Morph()
+func (r *Rauzy) Run(n int) {
+	r.N += n
+	r.Morph(n)
 	r.Eigenvector()
 	r.Basis()
 	r.Project()
@@ -95,19 +96,24 @@ func (r *Rauzy) Project() {
 	}
 }
 
-func (r *Rauzy) Png(w, h int, fn string) {
-	min, max := bds(r.Pts)
-	trX, trY := trans(min, max, float64(w), float64(h))
-
-	fp, err := os.Create(fn)
-	if err != nil {
-		panic(err)
+func (r *Rauzy) Png(w, h int, mm [][2]float64, fn string) {
+	if mm == nil {
+		mm = bds(r.Pts)
 	}
+	trX, trY := trans(mm[0], mm[1], float64(w), float64(h))
+
+	fp, _ := os.Create(fn)
 	defer fp.Close()
 
 	img := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
 	clear(img)
 	for _, cp := range r.Pts {
+		p := cp.P
+		for i := 0; i < 2; i++ {
+			if mm[i][0] > p[i] || p[i] > mm[1][i] {
+				continue
+			}
+		}
 		img.Set(trX(cp.P[0]), trY(cp.P[1]), r.Colors[cp.C])
 	}
 	png.Encode(fp, img)
@@ -140,8 +146,8 @@ func (r *Rauzy) Gif(w, h int, fn string, sec int) {
 			img.Set(x, y, color.Black)
 		}
 	}
-	min, max := bds(r.Pts)
-	trX, trY := trans(min, max, float64(w), float64(h))
+	mm := bds(r.Pts)
+	trX, trY := trans(mm[0], mm[1], float64(w), float64(h))
 	fp, _ := os.Create(fn)
 	defer fp.Close()
 
@@ -177,7 +183,7 @@ func clear(img *image.Paletted) {
 	}
 }
 
-func trans(min, max []float64, sx, sy float64) (func(float64) int, func(float64) int) {
+func trans(min, max [2]float64, sx, sy float64) (func(float64) int, func(float64) int) {
 	dx, dy := max[0]-min[0], max[1]-min[1]
 	if dy/dx > sy/sx {
 		w := sy * dx / dy
@@ -198,10 +204,10 @@ func trans(min, max []float64, sx, sy float64) (func(float64) int, func(float64)
 	}
 }
 
-func bds(pts []CP) ([]float64, []float64) {
+func bds(pts []CP) [][2]float64 {
 	n := len(pts[0].P)
-	min := make([]float64, n)
-	max := make([]float64, n)
+	min := [2]float64{}
+	max := [2]float64{}
 	for i := 0; i < n; i++ {
 		min[i] = math.MaxFloat64
 		max[i] = -math.MaxFloat64
@@ -217,7 +223,7 @@ func bds(pts []CP) ([]float64, []float64) {
 			}
 		}
 	}
-	return min, max
+	return [][2]float64{min, max}
 }
 
 func oprj(v, w [3]float64) [3]float64 {
