@@ -25,7 +25,7 @@ type Rauzy struct {
 	Pts    []CP          // Projected points
 }
 
-func NewRauzy(n int, s [3][]int) *Rauzy {
+func NewRauzy(s [3][]int) *Rauzy {
 	for i := 0; i < 3; i++ {
 		if len(s[i]) == 0 {
 			panic("Invalid pisot subsitution")
@@ -40,23 +40,23 @@ func NewRauzy(n int, s [3][]int) *Rauzy {
 	}
 
 	r := &Rauzy{
-		N:      n,
-		Word:   []int{0},
 		Colors: co,
 		Sub:    s,
 	}
-	r.Run(n)
+	r.Run()
 	return r
 }
 
-func (r *Rauzy) Morph(n int) {
+func (r *Rauzy) Morph(n int) []int {
+	word := []int{0}
 	for i := 0; i < n; i++ {
 		w := []int{}
-		for _, a := range r.Word {
+		for _, a := range word {
 			w = append(w, r.Sub[a]...)
 		}
-		r.Word = w
+		word = w
 	}
+	return word
 }
 
 func (r *Rauzy) Eigenvector() {
@@ -78,9 +78,8 @@ func (r *Rauzy) Basis() {
 	r.B = [][3]float64{e1, e2}
 }
 
-func (r *Rauzy) Run(n int) {
-	r.N += n
-	r.Morph(n)
+func (r *Rauzy) Run() {
+	r.Word = r.Morph(20)
 	r.Eigenvector()
 	r.Basis()
 	r.Project()
@@ -98,7 +97,7 @@ func (r *Rauzy) Project() {
 
 func (r *Rauzy) Png(w, h int, mm [][2]float64, fn string) {
 	if mm == nil {
-		mm = bds(r.Pts)
+		mm = bdd(r.Pts)
 	}
 	trX, trY := trans(mm[0], mm[1], float64(w), float64(h))
 
@@ -146,7 +145,7 @@ func (r *Rauzy) Gif(w, h int, fn string, sec int) {
 			img.Set(x, y, color.Black)
 		}
 	}
-	mm := bds(r.Pts)
+	mm := bdd(r.Pts)
 	trX, trY := trans(mm[0], mm[1], float64(w), float64(h))
 	fp, _ := os.Create(fn)
 	defer fp.Close()
@@ -204,7 +203,7 @@ func trans(min, max [2]float64, sx, sy float64) (func(float64) int, func(float64
 	}
 }
 
-func bds(pts []CP) [][2]float64 {
+func bdd(pts []CP) [][2]float64 {
 	n := len(pts[0].P)
 	min := [2]float64{}
 	max := [2]float64{}

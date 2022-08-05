@@ -17,18 +17,20 @@ func TestMain(t *testing.M) {
 	// r.Print()
 	// r.Points("img/points.csv")
 
-	r := NewRauzy(20, [3][]int{{0, 1}, {0, 2}, {0}})
-	r.Png(600, 600, nil, "img/rauzy_go_1_new.png")
-	r.Png(600, 600,
-		[][2]float64{
-			{-.05, -.05},
-			{.05, .05}},
-		"img/rauzy_go_2.png")
-	r.Run(2)
-	r.Png(600, 600,
-		[][2]float64{
-			{-.005, -.005},
-			{.005, .005}},
-		"img/rauzy_go_3.png")
-	r.Gif(600, 600, "img/rauzy_mov.gif", 60)
+	r := NewRauzy([3][]int{{0, 1}, {0, 2}, {0}})
+	f := NewFractal(r)
+	f.Points("img/rauzy_seq.png")
+	// r.Png(600, 600, nil, "img/rauzy_go_1_new.png")
+	// r.Png(600, 600,
+	// 	[][2]float64{
+	// 		{-.05, -.05},
+	// 		{.05, .05}},
+	// 	"img/rauzy_go_2.png")
+	// r.Run(2)
+	// r.Png(600, 600,
+	// 	[][2]float64{
+	// 		{-.005, -.005},
+	// 		{.005, .005}},
+	// 	"img/rauzy_go_3.png")
+	// r.Gif(600, 600, "img/rauzy_mov.gif", 60)
 }
