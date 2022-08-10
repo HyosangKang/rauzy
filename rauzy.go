@@ -8,11 +8,16 @@ import (
 	"image/png"
 	"math"
 	"os"
+
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg/draw"
 )
 
 type CP struct {
 	C int        // color
 	P [2]float64 // coordinate
+	N int
 }
 
 type Rauzy struct {
@@ -22,7 +27,7 @@ type Rauzy struct {
 	EV     [3]float64    // diverging direction
 	B      [][3]float64  // basis of contracting plane
 	Colors []color.Color // color set
-	Pts    []CP          // Projected points
+	CPs    []CP          // Projected points
 }
 
 func NewRauzy(s [3][]int) *Rauzy {
@@ -43,7 +48,7 @@ func NewRauzy(s [3][]int) *Rauzy {
 		Colors: co,
 		Sub:    s,
 	}
-	r.Run()
+	r.Run(20)
 	return r
 }
 
@@ -78,26 +83,56 @@ func (r *Rauzy) Basis() {
 	r.B = [][3]float64{e1, e2}
 }
 
-func (r *Rauzy) Run() {
+func (r *Rauzy) Points(p *plot.Plot, n int, debug bool) {
+	l := len(r.Morph(n))
+	for i := 0; i < l; i++ {
+		cp := r.CPs[i]
+		xys := plotter.XYs{
+			plotter.XY{X: cp.P[0], Y: cp.P[1]},
+		}
+		s, _ := plotter.NewScatter(xys)
+		s.GlyphStyle.Shape = draw.CircleGlyph{}
+		s.GlyphStyle.Color = r.Colors[cp.C]
+		p.Add(s)
+
+		if debug {
+			lab := fmt.Sprintf("(%d, %d)", cp.N, i)
+			label := plotter.XYLabels{
+				XYs:    xys,
+				Labels: []string{lab},
+			}
+			l, _ := plotter.NewLabels(label)
+			p.Add(l)
+		}
+	}
+}
+func (r *Rauzy) Run(n int) {
 	r.Word = r.Morph(20)
 	r.Eigenvector()
 	r.Basis()
-	r.Project()
+	l0 := 0
+	for i := 0; i <= n; i++ {
+		l1 := len(r.Morph(i))
+		r.Project(l0, l1, i)
+		l0 = l1
+	}
 }
 
-func (r *Rauzy) Project() {
+func (r *Rauzy) Project(l0, l1, i int) {
 	v := [3]float64{0, 0, 0}
-	for _, a := range r.Word {
+	for j, a := range r.Word {
 		v[a] += 1.0
-		o := oprj(v, r.EV)
-		c := [2]float64{dot(o, r.B[0]), dot(o, r.B[1])}
-		r.Pts = append(r.Pts, CP{a, c})
+		if l0 <= j && j < l1 {
+			o := oprj(v, r.EV)
+			c := [2]float64{dot(o, r.B[0]), dot(o, r.B[1])}
+			r.CPs = append(r.CPs, CP{a, c, i})
+		}
 	}
 }
 
 func (r *Rauzy) Png(w, h int, mm [][2]float64, fn string) {
 	if mm == nil {
-		mm = bdd(r.Pts)
+		mm = bdd(r.CPs)
 	}
 	trX, trY := trans(mm[0], mm[1], float64(w), float64(h))
 
@@ -106,7 +141,7 @@ func (r *Rauzy) Png(w, h int, mm [][2]float64, fn string) {
 
 	img := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
 	clear(img)
-	for _, cp := range r.Pts {
+	for _, cp := range r.CPs {
 		p := cp.P
 		for i := 0; i < 2; i++ {
 			if mm[i][0] > p[i] || p[i] > mm[1][i] {
@@ -145,7 +180,7 @@ func (r *Rauzy) Gif(w, h int, fn string, sec int) {
 			img.Set(x, y, color.Black)
 		}
 	}
-	mm := bdd(r.Pts)
+	mm := bdd(r.CPs)
 	trX, trY := trans(mm[0], mm[1], float64(w), float64(h))
 	fp, _ := os.Create(fn)
 	defer fp.Close()
@@ -157,15 +192,15 @@ func (r *Rauzy) Gif(w, h int, fn string, sec int) {
 	img := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
 	clear(img)
 	for i := 0; i < 60*sec; i++ {
-		if i > len(r.Pts)-1 {
+		if i > len(r.CPs)-1 {
 			break
 		}
-		p := [2]int{trX(r.Pts[i].P[0]), trY(r.Pts[i].P[1])}
-		c := r.Colors[r.Pts[i].C]
+		p := [2]int{trX(r.CPs[i].P[0]), trY(r.CPs[i].P[1])}
+		c := r.Colors[r.CPs[i].C]
 		drawP(img, p, c)
 		tim := image.NewPaletted(image.Rect(0, 0, w, h), r.Colors)
 		copy(tim.Pix, img.Pix)
-		q := [2]int{trX(r.Pts[i+1].P[0]), trY(r.Pts[i+1].P[1])}
+		q := [2]int{trX(r.CPs[i+1].P[0]), trY(r.CPs[i+1].P[1])}
 		drawL(tim, p, q)
 		g.Image = append(g.Image, tim)
 		g.Delay = append(g.Delay, 1)
